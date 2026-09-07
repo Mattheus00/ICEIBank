@@ -1,0 +1,26 @@
+# Maven
+agencia/target/
+*.class
+*.jar
+*.war
+
+# Runtime logs
+agencia/data/*.jsonl
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+.classpath
+.project
+.settings/
+
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Env / secrets locais
+.env
+*.local

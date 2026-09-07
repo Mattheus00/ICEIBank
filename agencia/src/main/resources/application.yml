@@ -1,0 +1,15 @@
+# Porta definida em runtime via System property (AGENCIA_ID → 4000/4001/4002)
+
+iceibank:
+  offset: 0
+  jwt:
+    secret: "iceibank-sprint1-jwt-secret-chave-deve-ter-pelo-menos-32-bytes"
+    expiration-ms: 300000
+  internal-token: "iceibank-token-interno-entre-agencias"
+  auth:
+    username: admin
+    password: admin123
+
+logging:
+  level:
+    org.springframework.security: WARN
