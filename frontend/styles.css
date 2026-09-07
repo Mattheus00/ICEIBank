@@ -1,0 +1,157 @@
+:root {
+  --bg: #0f1c24;
+  --bg-2: #163040;
+  --panel: #1b3a4b;
+  --text: #e8f1f5;
+  --muted: #9bb4c0;
+  --accent: #2ec4b6;
+  --accent-2: #ff9f1c;
+  --danger: #e63946;
+  --ok: #2a9d8f;
+  --border: rgba(232, 241, 245, 0.12);
+  --font: "Segoe UI", "Trebuchet MS", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font);
+  color: var(--text);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, #24566b 0%, transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, #1f4d3a 0%, transparent 50%),
+    linear-gradient(160deg, var(--bg), var(--bg-2));
+}
+
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 2.4rem;
+  letter-spacing: 0.04em;
+}
+
+.subtitle {
+  margin: 0.35rem 0 1.5rem;
+  color: var(--muted);
+}
+
+.panel {
+  background: color-mix(in srgb, var(--panel) 88%, black);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.1rem 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.panel h2 {
+  margin: 0 0 0.85rem;
+  font-size: 1.15rem;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.7rem;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+input,
+select,
+button {
+  font: inherit;
+}
+
+input,
+select {
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #102632;
+  color: var(--text);
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  background: var(--accent);
+  color: #06241f;
+  font-weight: 650;
+}
+
+button:hover {
+  filter: brightness(1.05);
+}
+
+.status {
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+}
+
+.status.ok {
+  color: var(--ok);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.85rem;
+}
+
+.card-form {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.85rem;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.card-form h3 {
+  margin: 0 0 0.7rem;
+  font-size: 1rem;
+  color: var(--accent-2);
+}
+
+.mensagem {
+  padding: 0.7rem 0.85rem;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.mensagem.erro {
+  background: color-mix(in srgb, var(--danger) 25%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 55%, white);
+}
+
+.mensagem.ok {
+  background: color-mix(in srgb, var(--ok) 25%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ok) 55%, white);
+}
+
+pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #0b1820;
+  border-radius: 8px;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  min-height: 120px;
+}

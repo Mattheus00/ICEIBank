@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ICEIBank</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <h1>ICEIBank</h1>
+      <p class="subtitle">Sprint 1 — agências particionadas + Lamport + JWT</p>
+    </header>
+
+    <section class="panel" id="config-panel">
+      <h2>Agência de entrada</h2>
+      <label>
+        URL da agência
+        <select id="agenciaUrl">
+          <option value="http://localhost:4000">Agência 0 — http://localhost:4000</option>
+          <option value="http://localhost:4001">Agência 1 — http://localhost:4001</option>
+          <option value="http://localhost:4002">Agência 2 — http://localhost:4002</option>
+        </select>
+      </label>
+      <p class="hint">Conta <code>id % 3</code> define a agência responsável.</p>
+    </section>
+
+    <section class="panel" id="login-panel">
+      <h2>Login</h2>
+      <form id="loginForm">
+        <label>
+          Usuário
+          <input id="username" type="text" value="admin" required />
+        </label>
+        <label>
+          Senha
+          <input id="password" type="password" value="admin123" required />
+        </label>
+        <button type="submit">Entrar</button>
+      </form>
+      <p id="authStatus" class="status">Não autenticado</p>
+    </section>
+
+    <section class="panel" id="ops-panel">
+      <h2>Operações</h2>
+
+      <div class="grid">
+        <form id="criarForm" class="card-form">
+          <h3>Criar conta</h3>
+          <label>ID <input name="id" type="number" required /></label>
+          <label>Nome <input name="nomeAluno" type="text" required /></label>
+          <label>Saldo inicial <input name="saldoInicial" type="number" step="0.01" value="100" /></label>
+          <button type="submit">Criar</button>
+        </form>
+
+        <form id="saldoForm" class="card-form">
+          <h3>Consultar saldo</h3>
+          <label>ID da conta <input name="id" type="number" required /></label>
+          <button type="submit">Consultar</button>
+        </form>
+
+        <form id="depositoForm" class="card-form">
+          <h3>Depositar</h3>
+          <label>ID <input name="id" type="number" required /></label>
+          <label>Valor <input name="valor" type="number" step="0.01" required /></label>
+          <button type="submit">Depositar</button>
+        </form>
+
+        <form id="saqueForm" class="card-form">
+          <h3>Sacar</h3>
+          <label>ID <input name="id" type="number" required /></label>
+          <label>Valor <input name="valor" type="number" step="0.01" required /></label>
+          <button type="submit">Sacar</button>
+        </form>
+
+        <form id="transferForm" class="card-form">
+          <h3>Transferir</h3>
+          <label>Origem <input name="idOrigem" type="number" required /></label>
+          <label>Destino <input name="idDestino" type="number" required /></label>
+          <label>Valor <input name="valor" type="number" step="0.01" required /></label>
+          <button type="submit">Transferir</button>
+        </form>
+
+        <form id="historicoForm" class="card-form">
+          <h3>Histórico da conta</h3>
+          <label>ID <input name="id" type="number" required /></label>
+          <button type="submit">Ver histórico</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Resultado</h2>
+      <div id="mensagem" class="mensagem" hidden></div>
+      <pre id="resultado">Aguardando operação…</pre>
+    </section>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
