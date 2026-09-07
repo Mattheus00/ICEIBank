@@ -10,30 +10,30 @@
   <div class="page">
     <header class="header">
       <h1>ICEIBank</h1>
-      <p class="subtitle">Sprint 1 — agências particionadas + Lamport + JWT</p>
+      <p class="subtitle">Escolha a agência, faça login e use uma operação por vez.</p>
     </header>
 
-    <section class="panel" id="config-panel">
-      <h2>Agência de entrada</h2>
-      <label>
-        URL da agência
+    <section class="panel">
+      <h2>1. Agência</h2>
+      <label class="field">
+        Qual agência vai atender
         <select id="agenciaUrl">
-          <option value="http://localhost:4000">Agência 0 — http://localhost:4000</option>
-          <option value="http://localhost:4001">Agência 1 — http://localhost:4001</option>
-          <option value="http://localhost:4002">Agência 2 — http://localhost:4002</option>
+          <option value="http://localhost:4000">Agência 0 (porta 4000) — contas 0, 3, 6...</option>
+          <option value="http://localhost:4001">Agência 1 (porta 4001) — contas 1, 4, 7...</option>
+          <option value="http://localhost:4002">Agência 2 (porta 4002) — contas 2, 5, 8...</option>
         </select>
       </label>
-      <p class="hint">Conta <code>id % 3</code> define a agência responsável.</p>
+      <p class="hint">A conta fica na agência do resto da divisão por 3 (id % 3).</p>
     </section>
 
-    <section class="panel" id="login-panel">
-      <h2>Login</h2>
-      <form id="loginForm">
-        <label>
+    <section class="panel">
+      <h2>2. Login</h2>
+      <form id="loginForm" class="form-row">
+        <label class="field">
           Usuário
           <input id="username" type="text" value="admin" required />
         </label>
-        <label>
+        <label class="field">
           Senha
           <input id="password" type="password" value="admin123" required />
         </label>
@@ -42,58 +42,65 @@
       <p id="authStatus" class="status">Não autenticado</p>
     </section>
 
-    <section class="panel" id="ops-panel">
-      <h2>Operações</h2>
-
-      <div class="grid">
-        <form id="criarForm" class="card-form">
-          <h3>Criar conta</h3>
-          <label>ID <input name="id" type="number" required /></label>
-          <label>Nome <input name="nomeAluno" type="text" required /></label>
-          <label>Saldo inicial <input name="saldoInicial" type="number" step="0.01" value="100" /></label>
-          <button type="submit">Criar</button>
-        </form>
-
-        <form id="saldoForm" class="card-form">
-          <h3>Consultar saldo</h3>
-          <label>ID da conta <input name="id" type="number" required /></label>
-          <button type="submit">Consultar</button>
-        </form>
-
-        <form id="depositoForm" class="card-form">
-          <h3>Depositar</h3>
-          <label>ID <input name="id" type="number" required /></label>
-          <label>Valor <input name="valor" type="number" step="0.01" required /></label>
-          <button type="submit">Depositar</button>
-        </form>
-
-        <form id="saqueForm" class="card-form">
-          <h3>Sacar</h3>
-          <label>ID <input name="id" type="number" required /></label>
-          <label>Valor <input name="valor" type="number" step="0.01" required /></label>
-          <button type="submit">Sacar</button>
-        </form>
-
-        <form id="transferForm" class="card-form">
-          <h3>Transferir</h3>
-          <label>Origem <input name="idOrigem" type="number" required /></label>
-          <label>Destino <input name="idDestino" type="number" required /></label>
-          <label>Valor <input name="valor" type="number" step="0.01" required /></label>
-          <button type="submit">Transferir</button>
-        </form>
-
-        <form id="historicoForm" class="card-form">
-          <h3>Histórico da conta</h3>
-          <label>ID <input name="id" type="number" required /></label>
-          <button type="submit">Ver histórico</button>
-        </form>
-      </div>
+    <section class="panel resultado-panel">
+      <h2>Resultado</h2>
+      <div id="mensagem" class="mensagem" hidden></div>
+      <pre id="resultado">Nenhuma operação ainda.</pre>
     </section>
 
     <section class="panel">
-      <h2>Resultado</h2>
-      <div id="mensagem" class="mensagem" hidden></div>
-      <pre id="resultado">Aguardando operação…</pre>
+      <h2>3. Criar conta</h2>
+      <form id="criarForm" class="form-row">
+        <label class="field">ID <input name="id" type="number" required /></label>
+        <label class="field">Nome <input name="nomeAluno" type="text" required /></label>
+        <label class="field">Saldo inicial <input name="saldoInicial" type="number" step="0.01" value="100" /></label>
+        <button type="submit">Criar</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>4. Consultar saldo</h2>
+      <form id="saldoForm" class="form-row">
+        <label class="field">ID da conta <input name="id" type="number" required /></label>
+        <button type="submit">Consultar</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>5. Depositar</h2>
+      <form id="depositoForm" class="form-row">
+        <label class="field">ID <input name="id" type="number" required /></label>
+        <label class="field">Valor <input name="valor" type="number" step="0.01" required /></label>
+        <button type="submit">Depositar</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>6. Sacar</h2>
+      <form id="saqueForm" class="form-row">
+        <label class="field">ID <input name="id" type="number" required /></label>
+        <label class="field">Valor <input name="valor" type="number" step="0.01" required /></label>
+        <button type="submit">Sacar</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>7. Transferir</h2>
+      <form id="transferForm" class="form-row">
+        <label class="field">Conta origem <input name="idOrigem" type="number" required /></label>
+        <label class="field">Conta destino <input name="idDestino" type="number" required /></label>
+        <label class="field">Valor <input name="valor" type="number" step="0.01" required /></label>
+        <button type="submit">Transferir</button>
+      </form>
+      <p class="hint">A origem precisa pertencer à agência selecionada no passo 1.</p>
+    </section>
+
+    <section class="panel">
+      <h2>8. Histórico da conta</h2>
+      <form id="historicoForm" class="form-row">
+        <label class="field">ID da conta <input name="id" type="number" required /></label>
+        <button type="submit">Ver histórico</button>
+      </form>
     </section>
   </div>
   <script src="app.js"></script>

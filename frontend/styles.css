@@ -1,15 +1,15 @@
 :root {
-  --bg: #0f1c24;
-  --bg-2: #163040;
-  --panel: #1b3a4b;
-  --text: #e8f1f5;
-  --muted: #9bb4c0;
-  --accent: #2ec4b6;
-  --accent-2: #ff9f1c;
-  --danger: #e63946;
-  --ok: #2a9d8f;
-  --border: rgba(232, 241, 245, 0.12);
-  --font: "Segoe UI", "Trebuchet MS", sans-serif;
+  --bg: #f4f6f8;
+  --panel: #ffffff;
+  --text: #1a2330;
+  --muted: #5b6b7c;
+  --line: #d7dee7;
+  --accent: #1f6f8b;
+  --ok-bg: #e7f6ef;
+  --ok-text: #1b6b45;
+  --erro-bg: #fdecea;
+  --erro-text: #9b1c1c;
+  --font: "Segoe UI", Tahoma, sans-serif;
 }
 
 * {
@@ -21,54 +21,59 @@ body {
   min-height: 100vh;
   font-family: var(--font);
   color: var(--text);
-  background:
-    radial-gradient(1200px 600px at 10% -10%, #24566b 0%, transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, #1f4d3a 0%, transparent 50%),
-    linear-gradient(160deg, var(--bg), var(--bg-2));
+  background: var(--bg);
 }
 
 .page {
-  max-width: 1100px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 2rem 1.25rem 3rem;
+  padding: 1.5rem 1rem 3rem;
 }
 
 .header h1 {
   margin: 0;
-  font-size: 2.4rem;
-  letter-spacing: 0.04em;
+  font-size: 1.8rem;
 }
 
 .subtitle {
-  margin: 0.35rem 0 1.5rem;
+  margin: 0.35rem 0 1.25rem;
   color: var(--muted);
 }
 
 .panel {
-  background: color-mix(in srgb, var(--panel) 88%, black);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 1.1rem 1.2rem;
-  margin-bottom: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 0.85rem;
 }
 
 .panel h2 {
   margin: 0 0 0.85rem;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
 }
 
 .hint {
+  margin: 0.55rem 0 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
 }
 
-label {
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.field {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 0.7rem;
-  font-size: 0.92rem;
+  gap: 0.3rem;
+  font-size: 0.9rem;
   color: var(--muted);
+  min-width: 140px;
+  flex: 1;
 }
 
 input,
@@ -79,21 +84,22 @@ button {
 
 input,
 select {
-  padding: 0.55rem 0.65rem;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: #102632;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
   color: var(--text);
 }
 
 button {
   cursor: pointer;
   border: none;
-  border-radius: 8px;
-  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
+  padding: 0.55rem 0.95rem;
   background: var(--accent);
-  color: #06241f;
-  font-weight: 650;
+  color: #fff;
+  font-weight: 600;
+  height: 38px;
 }
 
 button:hover {
@@ -101,57 +107,55 @@ button:hover {
 }
 
 .status {
-  margin: 0.5rem 0 0;
+  margin: 0.65rem 0 0;
   color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .status.ok {
-  color: var(--ok);
+  color: var(--ok-text);
+  font-weight: 600;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 0.85rem;
-}
-
-.card-form {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 0.85rem;
-  background: rgba(0, 0, 0, 0.15);
-}
-
-.card-form h3 {
-  margin: 0 0 0.7rem;
-  font-size: 1rem;
-  color: var(--accent-2);
+.resultado-panel {
+  border-color: var(--accent);
 }
 
 .mensagem {
-  padding: 0.7rem 0.85rem;
-  border-radius: 8px;
-  margin-bottom: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 0.65rem;
   font-weight: 600;
 }
 
 .mensagem.erro {
-  background: color-mix(in srgb, var(--danger) 25%, transparent);
-  border: 1px solid color-mix(in srgb, var(--danger) 55%, white);
+  background: var(--erro-bg);
+  color: var(--erro-text);
 }
 
 .mensagem.ok {
-  background: color-mix(in srgb, var(--ok) 25%, transparent);
-  border: 1px solid color-mix(in srgb, var(--ok) 55%, white);
+  background: var(--ok-bg);
+  color: var(--ok-text);
 }
 
 pre {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
-  background: #0b1820;
-  border-radius: 8px;
-  padding: 0.9rem;
-  border: 1px solid var(--border);
-  min-height: 120px;
+  background: #f0f3f6;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.75rem;
+  min-height: 80px;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 600px) {
+  .field {
+    min-width: 100%;
+  }
+
+  button {
+    width: 100%;
+  }
 }
