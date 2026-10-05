@@ -94,3 +94,41 @@ View: o HTML e o CSS.
 Controller: o app.js, que pega o clique/submit e chama a API.
 
 Nao e um MVC certinho de framework, mas da pra separar assim.
+
+---
+
+## Sprint 2 - funcionalidade adicional
+
+Dead-letter: quando o credito remoto chega e a conta nao existe, a mensagem nao e descartada. Ela vai para a fila `fila-agencia-X.dlq` (exchange `iceibank.dlx`) e o log grava `CREDITO_REMOTO_FALHOU` e `DEAD_LETTER`.
+
+Escolhi isso porque o teste de resiliencia do sprint mostra exatamente esse caso: a fila guarda a mensagem, mas a conta em memoria some se a agencia reinicia.
+
+---
+
+## Parte B (6.4) - relogio vetorial
+
+1) Se forem 10 agencias, cada mensagem carrega um vetor de 10 numeros. O tamanho cresce com o numero de processos. Para 3 ou 10 agencias isso e barato. Em um sistema enorme (milhares de processos) o vetor fica grande e custa mais para enviar e comparar. Por isso existe o relogio vetorial com versoes mais compactas, mas aqui nao e problema.
+
+2) V1 = [3, 1, 0] e V2 = [3, 2, 0]. Posicao a posicao: 3<=3, 1<=2, 0<=0, e eles sao diferentes. Entao V1 aconteceu antes de V2.
+
+3) V1 = [3, 1, 0] e V2 = [1, 3, 0]. Na posicao 0, 3 > 1. Na posicao 1, 1 < 3. Nenhum vetor e menor ou igual ao outro em todas as posicoes. Sao concorrentes.
+
+---
+
+## Parte C (7.5) - mensageria
+
+1) Quando a agencia de destino volta, o RabbitMQ entrega a mensagem que ficou na fila. O credito so e aplicado se a conta ainda existir na memoria. Se a agencia reiniciou, a conta sumiu. A mensagem chega, o log mostra CREDITO_REMOTO_FALHOU e ela vai para a dead-letter. A mensageria nao falhou: a conta e que nao estava mais la.
+
+2) Melhorou: a mensagem nao se perde se a agencia estiver fora do ar no momento da transferencia. A resposta 200 agora so significa "publiquei", nao "o dinheiro ja caiu". Continua aberto: conta so em memoria, e nao ha atomicidade (o debito ja foi feito mesmo se o credito falhar).
+
+3) O consumidor da fila nao usa JWT porque nao passa pelo HTTP. Quem publica e outra agencia, usando a URL do CloudAMQP. No lab isso e aceitavel, mas se a URL vazar qualquer pessoa consegue publicar credito falso. A seguranca aqui e a senha do broker, nao o token do usuario.
+
+---
+
+## Parte D (8.3) - linha do tempo causal
+
+1) O Lamport e um numero so. ts(A) < ts(B) nao prova que A causou B. O vetorial guarda o que cada agencia ja viu. Da para comparar posicao a posicao e concluir "antes" ou "concorrente" com certeza.
+
+2) Criar uma conta na agencia 0 e criar outra na agencia 1, sem transferencia entre elas, gera dois vetores que o script marca como CONCORRENTES. Faz sentido: um nao causou o outro. Ja o debito da transferencia e o credito remoto nao devem aparecer nessa lista, porque o credito carrega o vetor do envio (aoReceber).
+
+3) Comparar todos os pares e O(n^2). Com milhoes de eventos fica pesado. Daria para guardar so os vetores recentes, comparar por agencia, ou usar uma estrutura que descarte pares que ja se sabe que sao ordenados.
