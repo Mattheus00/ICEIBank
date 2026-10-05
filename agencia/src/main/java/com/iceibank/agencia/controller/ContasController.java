@@ -1,6 +1,6 @@
 package com.iceibank.agencia.controller;
 
-import com.iceibank.agencia.clock.RelogioLamport;
+import com.iceibank.agencia.clock.RelogioVetorial;
 import com.iceibank.agencia.config.ConfigAgencias;
 import com.iceibank.agencia.dto.CriarContaRequest;
 import com.iceibank.agencia.dto.ValorRequest;
@@ -22,13 +22,13 @@ public class ContasController {
 
     private final int idAgencia;
     private final ConcurrentHashMap<Integer, Conta> contas;
-    private final RelogioLamport relogio;
+    private final RelogioVetorial relogio;
     private final RegistroEventos registro;
 
     public ContasController(
             int idAgencia,
             ConcurrentHashMap<Integer, Conta> contas,
-            RelogioLamport relogio,
+            RelogioVetorial relogio,
             RegistroEventos registro
     ) {
         this.idAgencia = idAgencia;
@@ -50,7 +50,7 @@ public class ContasController {
         }
 
         double saldoInicial = body.getSaldoInicial() != null ? body.getSaldoInicial() : 0.0;
-        int ts = relogio.eventoLocal();
+        int[] vetor = relogio.eventoLocal();
         Conta conta = new Conta(id, body.getNomeAluno(), saldoInicial);
         contas.put(id, conta);
 
@@ -58,7 +58,7 @@ public class ContasController {
         detalhes.put("id", id);
         detalhes.put("nomeAluno", body.getNomeAluno());
         detalhes.put("saldoInicial", saldoInicial);
-        registro.registrar("CRIAR_CONTA", ts, detalhes);
+        registro.registrar("CRIAR_CONTA", vetor, detalhes);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(conta);
     }
@@ -83,14 +83,14 @@ public class ContasController {
             ));
         }
 
-        int ts = relogio.eventoLocal();
+        int[] vetor = relogio.eventoLocal();
         conta.setSaldo(conta.getSaldo() + body.getValor());
 
         Map<String, Object> detalhes = new LinkedHashMap<>();
         detalhes.put("id", id);
         detalhes.put("valor", body.getValor());
         detalhes.put("novoSaldo", conta.getSaldo());
-        registro.registrar("DEPOSITO", ts, detalhes);
+        registro.registrar("DEPOSITO", vetor, detalhes);
 
         return ResponseEntity.ok(conta);
     }
@@ -107,14 +107,14 @@ public class ContasController {
             return ResponseEntity.badRequest().body(Map.of("erro", "Saldo insuficiente."));
         }
 
-        int ts = relogio.eventoLocal();
+        int[] vetor = relogio.eventoLocal();
         conta.setSaldo(conta.getSaldo() - body.getValor());
 
         Map<String, Object> detalhes = new LinkedHashMap<>();
         detalhes.put("id", id);
         detalhes.put("valor", body.getValor());
         detalhes.put("novoSaldo", conta.getSaldo());
-        registro.registrar("SAQUE", ts, detalhes);
+        registro.registrar("SAQUE", vetor, detalhes);
 
         return ResponseEntity.ok(conta);
     }

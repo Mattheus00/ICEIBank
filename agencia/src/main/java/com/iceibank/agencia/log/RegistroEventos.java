@@ -27,12 +27,13 @@ public class RegistroEventos {
         this.caminhoArquivo = pastaDados.resolve("eventos-" + nomeAgencia + ".jsonl");
     }
 
-    public synchronized Map<String, Object> registrar(String tipo, int timestampLamport, Map<String, Object> detalhes)
+    public synchronized Map<String, Object> registrar(String tipo, int[] timestampVetorial, Map<String, Object> detalhes)
             throws IOException {
+        int[] copia = timestampVetorial.clone();
         Map<String, Object> evento = new LinkedHashMap<>();
         evento.put("agencia", nomeAgencia);
         evento.put("tipo", tipo);
-        evento.put("timestampLamport", timestampLamport);
+        evento.put("timestampVetorial", copia);
         evento.put("horaParede", Instant.now().toString());
         evento.put("detalhes", detalhes);
 
@@ -44,7 +45,7 @@ public class RegistroEventos {
                 StandardOpenOption.CREATE,
                 StandardOpenOption.APPEND
         );
-        System.out.println("[Lamport " + timestampLamport + "] " + tipo + " " + detalhes);
+        System.out.println("[Vetor " + java.util.Arrays.toString(copia) + "] " + tipo + " " + detalhes);
         return evento;
     }
 

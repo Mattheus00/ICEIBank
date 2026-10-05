@@ -2,9 +2,8 @@ package com.iceibank.agencia.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.client.RestTemplate;
 
-import com.iceibank.agencia.clock.RelogioLamport;
+import com.iceibank.agencia.clock.RelogioVetorial;
 import com.iceibank.agencia.log.RegistroEventos;
 import com.iceibank.agencia.model.Conta;
 
@@ -20,8 +19,8 @@ public class AgenciaBeansConfig {
     }
 
     @Bean
-    RelogioLamport relogioLamport() {
-        return new RelogioLamport();
+    RelogioVetorial relogioVetorial(int idAgencia) {
+        return new RelogioVetorial(idAgencia, ConfigAgencias.NUMERO_AGENCIAS);
     }
 
     @Bean
@@ -34,8 +33,4 @@ public class AgenciaBeansConfig {
         return new ConcurrentHashMap<>();
     }
 
-    @Bean
-    RestTemplate restTemplate() {
-        return new RestTemplate();
-    }
 }

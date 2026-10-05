@@ -1,6 +1,6 @@
 package com.iceibank.agencia.controller;
 
-import com.iceibank.agencia.clock.RelogioLamport;
+import com.iceibank.agencia.clock.RelogioVetorial;
 import com.iceibank.agencia.dto.LoginRequest;
 import com.iceibank.agencia.model.Conta;
 import com.iceibank.agencia.security.JwtService;
@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,7 +24,7 @@ public class AuthController {
     private final String username;
     private final String password;
     private final int idAgencia;
-    private final RelogioLamport relogio;
+    private final RelogioVetorial relogio;
     private final ConcurrentHashMap<Integer, Conta> contas;
 
     public AuthController(
@@ -31,7 +32,7 @@ public class AuthController {
             @Value("${iceibank.auth.username}") String username,
             @Value("${iceibank.auth.password}") String password,
             int idAgencia,
-            RelogioLamport relogio,
+            RelogioVetorial relogio,
             ConcurrentHashMap<Integer, Conta> contas
     ) {
         this.jwtService = jwtService;
@@ -61,7 +62,7 @@ public class AuthController {
     public Map<String, Object> health() {
         return Map.of(
                 "agencia", idAgencia,
-                "lamport", relogio.getContador(),
+                "vetor", Arrays.toString(relogio.copia()),
                 "contas", contas.size(),
                 "status", "UP"
         );
