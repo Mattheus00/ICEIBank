@@ -5,7 +5,6 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,11 +20,9 @@ import java.util.List;
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final String internalToken;
 
-    public JwtFilter(JwtService jwtService, @Value("${iceibank.internal-token}") String internalToken) {
+    public JwtFilter(JwtService jwtService) {
         this.jwtService = jwtService;
-        this.internalToken = internalToken;
     }
 
     @Override
@@ -41,23 +38,6 @@ public class JwtFilter extends OncePerRequestFilter {
                 || path.equals("/auth/login")
                 || path.equals("/health")) {
             filterChain.doFilter(request, response);
-            return;
-        }
-
-        // Chamada interna entre agências
-        if (path.matches("/contas/\\d+/creditar-remoto") && "POST".equalsIgnoreCase(method)) {
-            String interno = request.getHeader("X-Internal-Token");
-            if (internalToken.equals(interno)) {
-                var auth = new UsernamePasswordAuthenticationToken(
-                        "agencia-interna",
-                        null,
-                        List.of(new SimpleGrantedAuthority("ROLE_INTERNAL"))
-                );
-                SecurityContextHolder.getContext().setAuthentication(auth);
-                filterChain.doFilter(request, response);
-                return;
-            }
-            unauthorized(response, "Token interno inválido ou ausente.");
             return;
         }
 
