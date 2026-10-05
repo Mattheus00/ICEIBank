@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -13,8 +14,8 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 /**
- * Lê os .jsonl de todas as agências e imprime a linha do tempo
- * ordenada por relógio de Lamport.
+ * Lê os .jsonl e mostra a linha do tempo, apontando pares concorrentes
+ * entre agências diferentes pelo relógio vetorial.
  *
  * Executar a partir da pasta agencia/:
  *   mvn -q exec:java -Dexec.mainClass="com.iceibank.agencia.MesclarLogs"
@@ -43,22 +44,78 @@ public class MesclarLogs {
                     if (linha == null || linha.isBlank()) {
                         continue;
                     }
-                    todosEventos.add(mapper.readValue(linha, Map.class));
+                    Map<String, Object> evento = mapper.readValue(linha, Map.class);
+                    if (evento.get("timestampVetorial") != null) {
+                        todosEventos.add(evento);
+                    }
                 }
             }
         }
 
-        todosEventos.sort(Comparator.comparingInt(e -> ((Number) e.get("timestampLamport")).intValue()));
+        todosEventos.sort(Comparator.comparing(e -> Instant.parse(e.get("horaParede").toString())));
 
-        System.out.println("=== Linha do tempo unificada (ordenada por relogio de Lamport) ===");
+        System.out.println("=== Linha do tempo (ordenada por hora de parede) ===");
         for (Map<String, Object> evento : todosEventos) {
             System.out.println(
-                    "[Lamport " + evento.get("timestampLamport") + "] ("
-                            + evento.get("horaParede") + ") "
-                            + evento.get("agencia") + " - "
-                            + evento.get("tipo") + " "
+                    "[" + evento.get("agencia") + "] vetor=" + evento.get("timestampVetorial")
+                            + " " + evento.get("tipo") + " "
                             + mapper.writeValueAsString(evento.get("detalhes"))
             );
         }
+
+        System.out.println("\n=== Pares de eventos CONCORRENTES entre agências diferentes ===");
+        boolean encontrou = false;
+        for (int i = 0; i < todosEventos.size(); i++) {
+            for (int j = i + 1; j < todosEventos.size(); j++) {
+                Map<String, Object> e1 = todosEventos.get(i);
+                Map<String, Object> e2 = todosEventos.get(j);
+                if (e1.get("agencia").equals(e2.get("agencia"))) {
+                    continue;
+                }
+                if ("CONCORRENTES".equals(compararVetores(paraVetor(e1), paraVetor(e2)))) {
+                    encontrou = true;
+                    System.out.println(
+                            "[" + e1.get("agencia") + "] " + e1.get("tipo") + " (" + e1.get("timestampVetorial") + ") x "
+                                    + "[" + e2.get("agencia") + "] " + e2.get("tipo") + " (" + e2.get("timestampVetorial") + ")"
+                    );
+                }
+            }
+        }
+        if (!encontrou) {
+            System.out.println("(nenhum par concorrente encontrado nesta execução - gere mais eventos em paralelo e rode de novo)");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static int[] paraVetor(Map<String, Object> evento) {
+        List<Number> lista = (List<Number>) evento.get("timestampVetorial");
+        int[] vetor = new int[lista.size()];
+        for (int i = 0; i < lista.size(); i++) {
+            vetor[i] = lista.get(i).intValue();
+        }
+        return vetor;
+    }
+
+    static String compararVetores(int[] v1, int[] v2) {
+        boolean v1MenorOuIgual = true;
+        boolean v2MenorOuIgual = true;
+        for (int i = 0; i < v1.length; i++) {
+            if (v1[i] > v2[i]) {
+                v1MenorOuIgual = false;
+            }
+            if (v2[i] > v1[i]) {
+                v2MenorOuIgual = false;
+            }
+        }
+        if (v1MenorOuIgual && v2MenorOuIgual) {
+            return "IGUAIS";
+        }
+        if (v1MenorOuIgual) {
+            return "ANTES";
+        }
+        if (v2MenorOuIgual) {
+            return "DEPOIS";
+        }
+        return "CONCORRENTES";
     }
 }
