@@ -24,3 +24,16 @@ desktop.ini
 # Env / secrets locais
 .env
 *.local
+
+# Flutter / Dart
+app_mobile/.dart_tool/
+app_mobile/.flutter-plugins-dependencies
+app_mobile/.packages
+app_mobile/build/
+app_mobile/.idea/
+app_mobile/*.iml
+app_mobile/android/.gradle/
+app_mobile/android/local.properties
+app_mobile/android/app/debug/
+app_mobile/android/app/profile/
+app_mobile/android/app/release/
