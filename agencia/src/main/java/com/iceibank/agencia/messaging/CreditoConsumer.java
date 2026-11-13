@@ -1,33 +1,21 @@
 package com.iceibank.agencia.messaging;
 
-import com.iceibank.agencia.clock.RelogioVetorial;
-import com.iceibank.agencia.log.RegistroEventos;
-import com.iceibank.agencia.model.Conta;
+import com.iceibank.agencia.service.OperacoesContaService;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class CreditoConsumer {
 
-    private final ConcurrentHashMap<Integer, Conta> contas;
-    private final RelogioVetorial relogio;
-    private final RegistroEventos registro;
+    private final OperacoesContaService operacoes;
 
-    public CreditoConsumer(
-            ConcurrentHashMap<Integer, Conta> contas,
-            RelogioVetorial relogio,
-            RegistroEventos registro
-    ) {
-        this.contas = contas;
-        this.relogio = relogio;
-        this.registro = registro;
+    public CreditoConsumer(OperacoesContaService operacoes) {
+        this.operacoes = operacoes;
     }
 
     @RabbitListener(queues = "#{filaAgencia.name}")
@@ -37,33 +25,16 @@ public class CreditoConsumer {
         int origemAgencia = ((Number) mensagem.get("origemAgencia")).intValue();
         int[] vetorEnvio = paraVetor(mensagem.get("vetorEnvio"));
 
-        int[] vetor = relogio.aoReceber(vetorEnvio);
-        Conta conta = contas.get(idConta);
-
-        Map<String, Object> detalhes = new LinkedHashMap<>();
-        detalhes.put("idConta", idConta);
-        detalhes.put("valor", valor);
-        detalhes.put("origemAgencia", origemAgencia);
-
-        if (conta == null) {
-            detalhes.put("motivo", "conta nao encontrada");
-            registro.registrar("CREDITO_REMOTO_FALHOU", vetor, detalhes);
-            throw new AmqpRejectAndDontRequeueException("conta nao encontrada");
+        try {
+            operacoes.creditarRemoto(idConta, valor, origemAgencia, vetorEnvio);
+        } catch (OperacoesContaService.ContaAusenteException e) {
+            throw new AmqpRejectAndDontRequeueException(e.getMessage());
         }
-
-        conta.setSaldo(conta.getSaldo() + valor);
-        registro.registrar("TRANSFERENCIA_CREDITO_REMOTO", vetor, detalhes);
     }
 
     @RabbitListener(queues = "#{filaDeadLetter.name}")
     public void consumirDeadLetter(Map<String, Object> mensagem) throws IOException {
-        int[] vetor = relogio.eventoLocal();
-        Map<String, Object> detalhes = new LinkedHashMap<>();
-        detalhes.put("idConta", mensagem.get("idConta"));
-        detalhes.put("valor", mensagem.get("valor"));
-        detalhes.put("origemAgencia", mensagem.get("origemAgencia"));
-        detalhes.put("motivo", "mensagem enviada para dead-letter (conta nao encontrada)");
-        registro.registrar("DEAD_LETTER", vetor, detalhes);
+        operacoes.registrarDeadLetter(mensagem);
     }
 
     private int[] paraVetor(Object valor) {

@@ -1,121 +1,72 @@
 package com.iceibank.agencia.controller;
 
-import com.iceibank.agencia.clock.RelogioVetorial;
-import com.iceibank.agencia.config.ConfigAgencias;
 import com.iceibank.agencia.dto.CriarContaRequest;
+import com.iceibank.agencia.dto.SincronizarRequest;
 import com.iceibank.agencia.dto.ValorRequest;
-import com.iceibank.agencia.log.RegistroEventos;
 import com.iceibank.agencia.model.Conta;
+import com.iceibank.agencia.service.OperacoesContaService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping("/contas")
 public class ContasController {
 
-    private final int idAgencia;
-    private final ConcurrentHashMap<Integer, Conta> contas;
-    private final RelogioVetorial relogio;
-    private final RegistroEventos registro;
+    private final OperacoesContaService operacoes;
 
-    public ContasController(
-            int idAgencia,
-            ConcurrentHashMap<Integer, Conta> contas,
-            RelogioVetorial relogio,
-            RegistroEventos registro
-    ) {
-        this.idAgencia = idAgencia;
-        this.contas = contas;
-        this.relogio = relogio;
-        this.registro = registro;
+    public ContasController(OperacoesContaService operacoes) {
+        this.operacoes = operacoes;
     }
 
     @PostMapping
     public ResponseEntity<?> criarConta(@Valid @RequestBody CriarContaRequest body) throws IOException {
-        int id = body.getId();
-        if (ConfigAgencias.agenciaResponsavel(id) != idAgencia) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "erro", "Conta " + id + " não pertence a esta agência."
-            ));
-        }
-        if (contas.containsKey(id)) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", "Conta já existe."));
-        }
-
         double saldoInicial = body.getSaldoInicial() != null ? body.getSaldoInicial() : 0.0;
-        int[] vetor = relogio.eventoLocal();
-        Conta conta = new Conta(id, body.getNomeAluno(), saldoInicial);
-        contas.put(id, conta);
-
-        Map<String, Object> detalhes = new LinkedHashMap<>();
-        detalhes.put("id", id);
-        detalhes.put("nomeAluno", body.getNomeAluno());
-        detalhes.put("saldoInicial", saldoInicial);
-        registro.registrar("CRIAR_CONTA", vetor, detalhes);
-
+        Conta conta = operacoes.criarConta(body.getId(), body.getNomeAluno(), saldoInicial);
         return ResponseEntity.status(HttpStatus.CREATED).body(conta);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> consultarSaldo(@PathVariable int id) {
-        Conta conta = contas.get(id);
-        if (conta == null) {
+        Map<String, Object> snapshot = operacoes.snapshot(id);
+        if (snapshot == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                     "erro", "Conta não encontrada nesta agência."
             ));
         }
-        return ResponseEntity.ok(conta);
+        return ResponseEntity.ok(snapshot);
     }
 
     @PostMapping("/{id}/depositar")
     public ResponseEntity<?> depositar(@PathVariable int id, @Valid @RequestBody ValorRequest body) throws IOException {
-        Conta conta = contas.get(id);
-        if (conta == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
-                    "erro", "Conta não encontrada nesta agência."
-            ));
-        }
-
-        int[] vetor = relogio.eventoLocal();
-        conta.setSaldo(conta.getSaldo() + body.getValor());
-
-        Map<String, Object> detalhes = new LinkedHashMap<>();
-        detalhes.put("id", id);
-        detalhes.put("valor", body.getValor());
-        detalhes.put("novoSaldo", conta.getSaldo());
-        registro.registrar("DEPOSITO", vetor, detalhes);
-
-        return ResponseEntity.ok(conta);
+        return ResponseEntity.ok(operacoes.depositar(id, body.getValor()));
     }
 
     @PostMapping("/{id}/sacar")
     public ResponseEntity<?> sacar(@PathVariable int id, @Valid @RequestBody ValorRequest body) throws IOException {
-        Conta conta = contas.get(id);
-        if (conta == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
-                    "erro", "Conta não encontrada nesta agência."
-            ));
-        }
-        if (conta.getSaldo() < body.getValor()) {
-            return ResponseEntity.badRequest().body(Map.of("erro", "Saldo insuficiente."));
-        }
+        return ResponseEntity.ok(operacoes.sacar(id, body.getValor()));
+    }
 
-        int[] vetor = relogio.eventoLocal();
-        conta.setSaldo(conta.getSaldo() - body.getValor());
-
-        Map<String, Object> detalhes = new LinkedHashMap<>();
-        detalhes.put("id", id);
-        detalhes.put("valor", body.getValor());
-        detalhes.put("novoSaldo", conta.getSaldo());
-        registro.registrar("SAQUE", vetor, detalhes);
-
-        return ResponseEntity.ok(conta);
+    @PostMapping("/{id}/sincronizar")
+    public ResponseEntity<?> sincronizar(
+            @PathVariable int id,
+            @Valid @RequestBody SincronizarRequest body,
+            Authentication authentication
+    ) throws IOException {
+        String usuario = authentication != null ? authentication.getName() : "anon";
+        Map<String, Object> resposta = operacoes.sincronizar(
+                id,
+                body.getTipo(),
+                body.getValor(),
+                body.getVetorConhecido(),
+                body.getOperacaoId(),
+                usuario
+        );
+        return ResponseEntity.ok(resposta);
     }
 }

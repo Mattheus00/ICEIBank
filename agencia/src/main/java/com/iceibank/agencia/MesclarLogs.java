@@ -72,7 +72,7 @@ public class MesclarLogs {
                 if (e1.get("agencia").equals(e2.get("agencia"))) {
                     continue;
                 }
-                if ("CONCORRENTES".equals(compararVetores(paraVetor(e1), paraVetor(e2)))) {
+                if ("CONCORRENTES".equals(com.iceibank.agencia.clock.ComparadorVetores.comparar(paraVetor(e1), paraVetor(e2)))) {
                     encontrou = true;
                     System.out.println(
                             "[" + e1.get("agencia") + "] " + e1.get("tipo") + " (" + e1.get("timestampVetorial") + ") x "
@@ -96,26 +96,4 @@ public class MesclarLogs {
         return vetor;
     }
 
-    static String compararVetores(int[] v1, int[] v2) {
-        boolean v1MenorOuIgual = true;
-        boolean v2MenorOuIgual = true;
-        for (int i = 0; i < v1.length; i++) {
-            if (v1[i] > v2[i]) {
-                v1MenorOuIgual = false;
-            }
-            if (v2[i] > v1[i]) {
-                v2MenorOuIgual = false;
-            }
-        }
-        if (v1MenorOuIgual && v2MenorOuIgual) {
-            return "IGUAIS";
-        }
-        if (v1MenorOuIgual) {
-            return "ANTES";
-        }
-        if (v2MenorOuIgual) {
-            return "DEPOIS";
-        }
-        return "CONCORRENTES";
-    }
 }
