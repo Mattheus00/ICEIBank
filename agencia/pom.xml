@@ -15,7 +15,7 @@
     <artifactId>agencia</artifactId>
     <version>1.0.0</version>
     <name>iceibank-agencia</name>
-    <description>Agencia do ICEIBank - Sprint 2 (Pub/Sub + Relogio Vetorial)</description>
+    <description>Agencia do ICEIBank - Sprint 3 (Bully + Flutter offline-first)</description>
 
     <properties>
         <java.version>21</java.version>

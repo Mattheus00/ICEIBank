@@ -36,7 +36,8 @@ public class JwtFilter extends OncePerRequestFilter {
 
         if ("OPTIONS".equalsIgnoreCase(method)
                 || path.equals("/auth/login")
-                || path.equals("/health")) {
+                || path.equals("/health")
+                || path.startsWith("/bully/")) {
             filterChain.doFilter(request, response);
             return;
         }
