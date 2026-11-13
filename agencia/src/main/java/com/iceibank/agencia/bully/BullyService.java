@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -25,6 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class BullyService {
 
     private static final long ESPERA_COORDENADOR_MS = 5_000L;
+    private static final long HEARTBEAT_INTERVALO_MS = 3_000L;
 
     private final int idAgencia;
     private final RelogioVetorial relogio;
@@ -35,10 +37,17 @@ public class BullyService {
         t.setDaemon(true);
         return t;
     });
+    private final ScheduledExecutorService heartbeatExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "bully-heartbeat");
+        t.setDaemon(true);
+        return t;
+    });
 
     private final AtomicBoolean eleicaoEmAndamento = new AtomicBoolean(false);
+    private final AtomicBoolean heartbeatEmAndamento = new AtomicBoolean(false);
     private final Object coordenadorMonitor = new Object();
     private volatile Integer liderAtual;
+    private volatile boolean encerrado;
 
     public BullyService(
             int idAgencia,
@@ -55,6 +64,12 @@ public class BullyService {
     @EventListener(ApplicationReadyEvent.class)
     public void aoPronto() {
         executor.execute(this::iniciarEleicao);
+        heartbeatExecutor.scheduleWithFixedDelay(
+                this::verificarLider,
+                HEARTBEAT_INTERVALO_MS,
+                HEARTBEAT_INTERVALO_MS,
+                TimeUnit.MILLISECONDS
+        );
     }
 
     public Integer getLiderAtual() {
@@ -66,6 +81,9 @@ public class BullyService {
     }
 
     public void iniciarEleicao() {
+        if (encerrado) {
+            return;
+        }
         if (!eleicaoEmAndamento.compareAndSet(false, true)) {
             return;
         }
@@ -135,6 +153,45 @@ public class BullyService {
         registro.registrar("LIDER_ANUNCIADO", vetor, detalhes);
         synchronized (coordenadorMonitor) {
             coordenadorMonitor.notifyAll();
+        }
+    }
+
+    private void verificarLider() {
+        if (encerrado || eleicaoEmAndamento.get()) {
+            return;
+        }
+        if (!heartbeatEmAndamento.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            Integer lider = liderAtual;
+            if (lider == null) {
+                executor.execute(this::iniciarEleicao);
+                return;
+            }
+            if (lider == idAgencia) {
+                return;
+            }
+
+            ConfigAgencias.Agencia peer = ConfigAgencias.agenciaPorId(lider);
+            try {
+                // Consulta sem incrementar o relógio.
+                restTemplate.getForEntity(peer.url() + "/bully/lider", Map.class);
+            } catch (RestClientException e) {
+                try {
+                    int[] vetor = relogio.eventoLocal();
+                    Map<String, Object> detalhes = new LinkedHashMap<>();
+                    detalhes.put("idLider", lider);
+                    detalhes.put("motivo", "timeout ou conexao recusada no heartbeat");
+                    registro.registrar("LIDER_NAO_RESPONDEU", vetor, detalhes);
+                } catch (IOException io) {
+                    System.err.println("[Bully] falha ao registrar LIDER_NAO_RESPONDEU: " + io.getMessage());
+                }
+                liderAtual = null;
+                executor.execute(this::iniciarEleicao);
+            }
+        } finally {
+            heartbeatEmAndamento.set(false);
         }
     }
 
@@ -217,8 +274,11 @@ public class BullyService {
 
     @PreDestroy
     public void encerrar() {
+        encerrado = true;
+        heartbeatExecutor.shutdownNow();
         executor.shutdownNow();
         try {
+            heartbeatExecutor.awaitTermination(2, TimeUnit.SECONDS);
             executor.awaitTermination(2, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
