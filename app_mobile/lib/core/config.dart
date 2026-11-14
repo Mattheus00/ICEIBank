@@ -5,7 +5,9 @@ import 'package:flutter/foundation.dart';
 /// No Windows/Chrome do laboratório, usa localhost.
 class AppConfig {
   static String get _host {
-    if (defaultTargetPlatform == TargetPlatform.android) {
+    // Web (Chrome) e desktop usam localhost.
+    // Só o emulador Android precisa de 10.0.2.2.
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       return '10.0.2.2';
     }
     return 'localhost';
@@ -22,7 +24,7 @@ class AppConfig {
 
   static int agenciaDaConta(int idConta) => idConta % 3;
 
-  static const Duration timeoutHttp = Duration(seconds: 4);
+  static const Duration timeoutHttp = Duration(seconds: 10);
   static const Duration intervaloLideranca = Duration(seconds: 3);
 }
 
