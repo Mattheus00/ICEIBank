@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/config.dart';
+import '../../core/app_theme.dart';
 import '../../data/leadership_repository.dart';
 
 class LeadershipPanel extends StatefulWidget {
@@ -63,8 +64,9 @@ class _LeadershipPanelState extends State<LeadershipPanel>
     if (_emVoo || !mounted) return;
     _emVoo = true;
     try {
-      final snap =
-          await widget.repository.consultar(preferida: widget.agenciaPreferida);
+      final snap = await widget.repository.consultar(
+        preferida: widget.agenciaPreferida,
+      );
       if (!mounted) return;
       setState(() {
         _snap = snap;
@@ -81,45 +83,79 @@ class _LeadershipPanelState extends State<LeadershipPanel>
   @override
   Widget build(BuildContext context) {
     final snap = _snap;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Painel de liderança',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              snap == null
-                  ? 'Consultando...'
-                  : 'Líder atual: ${snap.liderAtual ?? "desconhecido"} (${snap.estado})',
-            ),
-            if (snap != null)
-              Text(
-                'Observado via agência ${snap.consultadoEmAgencia} às '
-                '${_hora(snap.atualizadoEm)}',
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
+    final known = snap?.liderAtual != null;
+    return BankSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.hub_outlined, size: 20, color: BankTheme.green),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Liderança da rede',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
               ),
-            if (_erro != null) ...[
-              const SizedBox(height: 6),
-              Text(_erro!, style: const TextStyle(color: Colors.deepOrange)),
             ],
-            const SizedBox(height: 4),
-            const Text(
-              'A líder é informativa. Operações da conta vão para a agência do id % 3.',
-              style: TextStyle(fontSize: 12),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  known ? 'Agência ${snap!.liderAtual}' : 'Em verificação',
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -.7,
+                  ),
+                ),
+              ),
+              Icon(
+                known ? Icons.verified_outlined : Icons.hourglass_top_rounded,
+                color: known ? BankTheme.green : BankTheme.amber,
+                size: 26,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          BankBadge(
+            known ? 'Líder atual' : 'Aguardando resposta',
+            color: known ? BankTheme.green : BankTheme.amber,
+            background: known ? BankTheme.pale : const Color(0xFFFFF1D9),
+          ),
+          const SizedBox(height: 22),
+          const Divider(),
+          const SizedBox(height: 16),
+          Text(
+            snap == null
+                ? 'Consultando as agências...'
+                : 'Consulta às ${BankTheme.time(snap.atualizadoEm)} · Agência ${snap.consultadoEmAgencia}',
+            style: const TextStyle(fontSize: 12, color: BankTheme.muted),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Atualiza automaticamente. A liderança não altera a agência da sua conta.',
+            style: TextStyle(fontSize: 12, color: BankTheme.muted, height: 1.6),
+          ),
+          if (_erro != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              known
+                  ? 'Observação obtida por outra agência.'
+                  : 'Não foi possível confirmar a liderança.',
+              style: const TextStyle(
+                color: BankTheme.amber,
+                fontSize: 12,
+                height: 1.5,
+              ),
             ),
           ],
-        ),
+        ],
       ),
     );
   }
-
-  String _hora(DateTime dt) =>
-      '${dt.hour.toString().padLeft(2, '0')}:'
-      '${dt.minute.toString().padLeft(2, '0')}:'
-      '${dt.second.toString().padLeft(2, '0')}';
 }

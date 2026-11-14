@@ -88,7 +88,9 @@ public class BullyService {
             return;
         }
         try {
-            liderAtual = null;
+            synchronized (coordenadorMonitor) {
+                liderAtual = null;
+            }
             int[] vetorInicio = relogio.eventoLocal();
             Map<String, Object> detalhes = new LinkedHashMap<>();
             detalhes.put("idAgencia", idAgencia);
@@ -99,7 +101,7 @@ public class BullyService {
                 if (peer.id() <= idAgencia) {
                     continue;
                 }
-                if (enviarEleicao(peer, vetorInicio)) {
+                if (enviarEleicao(peer, relogio.aoEnviar())) {
                     alguemMaiorRespondeu = true;
                 }
             }
@@ -120,10 +122,9 @@ public class BullyService {
                 }
             }
 
-            if (liderAtual == null || liderAtual <= idAgencia) {
-                // OK de agência maior veio, mas o coordenador não chegou a tempo.
-                tornarLider();
-            }
+            // Um OK confirma um candidato maior. A falta do anúncio não autoriza
+            // assumir sua liderança: permanecemos sem líder e o heartbeat tenta
+            // outra eleição. Só vencemos quando nenhum candidato maior responde.
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (IOException e) {
@@ -136,6 +137,9 @@ public class BullyService {
     public void receberEleicao(int idOrigem, int[] vetorRecebido) throws IOException {
         validarId(idOrigem);
         validarVetor(vetorRecebido);
+        if (idOrigem >= idAgencia) {
+            throw new IllegalArgumentException("eleicao deve vir de uma agencia com ID menor");
+        }
         int[] vetor = relogio.aoReceber(vetorRecebido);
         Map<String, Object> detalhes = new LinkedHashMap<>();
         detalhes.put("idOrigem", idOrigem);
@@ -147,11 +151,19 @@ public class BullyService {
         validarId(idLider);
         validarVetor(vetorRecebido);
         int[] vetor = relogio.aoReceber(vetorRecebido);
-        liderAtual = idLider;
+        if (idLider < idAgencia) {
+            // Um anúncio atrasado não pode rebaixar uma agência maior ainda viva.
+            // A nova eleição anuncia o coordenador correto também aos demais pares.
+            if (!encerrado) {
+                executor.execute(this::iniciarEleicao);
+            }
+            return;
+        }
         Map<String, Object> detalhes = new LinkedHashMap<>();
         detalhes.put("idLider", idLider);
-        registro.registrar("LIDER_ANUNCIADO", vetor, detalhes);
         synchronized (coordenadorMonitor) {
+            liderAtual = idLider;
+            registro.registrar("LIDER_ANUNCIADO", vetor, detalhes);
             coordenadorMonitor.notifyAll();
         }
     }
@@ -187,7 +199,13 @@ public class BullyService {
                 } catch (IOException io) {
                     System.err.println("[Bully] falha ao registrar LIDER_NAO_RESPONDEU: " + io.getMessage());
                 }
-                liderAtual = null;
+                synchronized (coordenadorMonitor) {
+                    // Não apaga um anúncio novo por causa de um heartbeat antigo.
+                    if (!lider.equals(liderAtual)) {
+                        return;
+                    }
+                    liderAtual = null;
+                }
                 executor.execute(this::iniciarEleicao);
             }
         } finally {
@@ -196,18 +214,22 @@ public class BullyService {
     }
 
     private void tornarLider() throws IOException {
-        liderAtual = idAgencia;
-        int[] vetor = relogio.eventoLocal();
-        Map<String, Object> detalhes = new LinkedHashMap<>();
-        detalhes.put("idLider", idAgencia);
-        registro.registrar("TORNOU_LIDER", vetor, detalhes);
+        synchronized (coordenadorMonitor) {
+            if (encerrado || (liderAtual != null && liderAtual > idAgencia)) {
+                return;
+            }
+            liderAtual = idAgencia;
+            int[] vetor = relogio.eventoLocal();
+            Map<String, Object> detalhes = new LinkedHashMap<>();
+            detalhes.put("idLider", idAgencia);
+            registro.registrar("TORNOU_LIDER", vetor, detalhes);
+        }
 
-        int[] vetorEnvio = relogio.aoEnviar();
         for (ConfigAgencias.Agencia peer : ConfigAgencias.AGENCIAS) {
             if (peer.id() == idAgencia) {
                 continue;
             }
-            anunciarCoordenador(peer, vetorEnvio);
+            anunciarCoordenador(peer, relogio.aoEnviar());
         }
         synchronized (coordenadorMonitor) {
             coordenadorMonitor.notifyAll();

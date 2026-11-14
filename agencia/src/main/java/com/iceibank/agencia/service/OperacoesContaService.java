@@ -18,7 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class OperacoesContaService {
 
-    private final Object estadoLock = new Object();
+    // O monitor do relógio também é usado pelos eventos Bully. Assim a comparação
+    // do vetor e a alteração do saldo não podem ser intercaladas com uma eleição.
     private final int idAgencia;
     private final ConcurrentHashMap<Integer, Conta> contas;
     private final RelogioVetorial relogio;
@@ -38,7 +39,7 @@ public class OperacoesContaService {
     }
 
     public Map<String, Object> snapshot(int id) {
-        synchronized (estadoLock) {
+        synchronized (relogio) {
             Conta conta = contas.get(id);
             if (conta == null) {
                 return null;
@@ -48,7 +49,7 @@ public class OperacoesContaService {
     }
 
     public Conta criarConta(int id, String nomeAluno, double saldoInicial) throws IOException {
-        synchronized (estadoLock) {
+        synchronized (relogio) {
             if (ConfigAgencias.agenciaResponsavel(id) != idAgencia) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Conta " + id + " não pertence a esta agência.");
             }
@@ -68,7 +69,7 @@ public class OperacoesContaService {
     }
 
     public Conta depositar(int id, double valor) throws IOException {
-        synchronized (estadoLock) {
+        synchronized (relogio) {
             Conta conta = exigirConta(id);
             int[] vetor = relogio.eventoLocal();
             conta.setSaldo(conta.getSaldo() + valor);
@@ -82,7 +83,7 @@ public class OperacoesContaService {
     }
 
     public Conta sacar(int id, double valor) throws IOException {
-        synchronized (estadoLock) {
+        synchronized (relogio) {
             Conta conta = exigirConta(id);
             if (conta.getSaldo() < valor) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Saldo insuficiente.");
@@ -128,7 +129,7 @@ public class OperacoesContaService {
             assinatura = tipoNorm + "|" + valor;
         }
 
-        synchronized (estadoLock) {
+        synchronized (relogio) {
             if (chaveRecibo != null) {
                 Recibo previo = recibos.get(chaveRecibo);
                 if (previo != null) {
@@ -177,7 +178,6 @@ public class OperacoesContaService {
             detalhes.put("operacaoId", operacaoId);
             detalhes.put("usuario", usuario);
             detalhes.put("novoSaldo", conta.getSaldo());
-            registro.registrar("SINCRONIZACAO_OFFLINE", vetorNovo, detalhes);
 
             Map<String, Object> resposta = new LinkedHashMap<>();
             resposta.put("conta", copiaConta(conta, vetorNovo));
@@ -187,6 +187,9 @@ public class OperacoesContaService {
             if (chaveRecibo != null) {
                 recibos.put(chaveRecibo, new Recibo(assinatura, resposta));
             }
+            // Uma falha no log após aplicar o saldo não pode apagar o recibo:
+            // o reenvio com o mesmo ID deve reconhecer o efeito já realizado.
+            registro.registrar("SINCRONIZACAO_OFFLINE", vetorNovo, detalhes);
             return new LinkedHashMap<>(resposta);
         }
     }
@@ -194,7 +197,7 @@ public class OperacoesContaService {
     /** Débito da transferência; retorna se o destino é local. Publicação RabbitMQ fica fora do lock. */
     public ResultadoDebitoTransferencia debitarParaTransferencia(int idOrigem, int idDestino, double valor)
             throws IOException {
-        synchronized (estadoLock) {
+        synchronized (relogio) {
             Conta origem = contas.get(idOrigem);
             if (origem == null) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Conta de origem não encontrada nesta agência.");
@@ -234,7 +237,7 @@ public class OperacoesContaService {
     }
 
     public void creditarRemoto(int idConta, double valor, int origemAgencia, int[] vetorEnvio) throws IOException {
-        synchronized (estadoLock) {
+        synchronized (relogio) {
             int[] vetor = relogio.aoReceber(vetorEnvio);
             Conta conta = contas.get(idConta);
             Map<String, Object> detalhes = new LinkedHashMap<>();
@@ -254,7 +257,7 @@ public class OperacoesContaService {
     }
 
     public void registrarDeadLetter(Map<String, Object> mensagem) throws IOException {
-        synchronized (estadoLock) {
+        synchronized (relogio) {
             int[] vetor = relogio.eventoLocal();
             Map<String, Object> detalhes = new LinkedHashMap<>();
             detalhes.put("idConta", mensagem.get("idConta"));

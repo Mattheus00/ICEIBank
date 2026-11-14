@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'core/api_client.dart';
+import 'core/app_theme.dart';
 import 'core/session.dart';
 import 'data/bank_repository.dart';
 import 'features/home/home_page.dart';
@@ -22,15 +23,12 @@ class IceiBankApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'ICEIBank',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1B4D3E)),
-        useMaterial3: true,
-      ),
+      debugShowCheckedModeBanner: false,
+      theme: BankTheme.light,
       home: FutureBuilder<String?>(
         future: session.token(),
         builder: (context, snap) {
-          if (!snap.hasData &&
-              snap.connectionState != ConnectionState.done) {
+          if (!snap.hasData && snap.connectionState != ConnectionState.done) {
             return const Scaffold(
               body: Center(child: CircularProgressIndicator()),
             );

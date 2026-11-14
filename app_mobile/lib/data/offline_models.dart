@@ -1,10 +1,4 @@
-enum EstadoPendencia {
-  pendente,
-  enviando,
-  sincronizada,
-  conflito,
-  falha,
-}
+enum EstadoPendencia { pendente, enviando, sincronizada, conflito, falha }
 
 class ContaCache {
   ContaCache({
@@ -26,26 +20,26 @@ class ContaCache {
   final DateTime lidoEm;
 
   Map<String, dynamic> toJson() => {
-        'usuario': usuario,
-        'agencia': agencia,
-        'contaId': contaId,
-        'nome': nome,
-        'saldoConfirmado': saldoConfirmado,
-        'vetorConfirmado': vetorConfirmado,
-        'lidoEm': lidoEm.toIso8601String(),
-      };
+    'usuario': usuario,
+    'agencia': agencia,
+    'contaId': contaId,
+    'nome': nome,
+    'saldoConfirmado': saldoConfirmado,
+    'vetorConfirmado': vetorConfirmado,
+    'lidoEm': lidoEm.toIso8601String(),
+  };
 
   factory ContaCache.fromJson(Map<String, dynamic> json) => ContaCache(
-        usuario: json['usuario'] as String,
-        agencia: json['agencia'] as int,
-        contaId: json['contaId'] as int,
-        nome: json['nome'] as String? ?? '',
-        saldoConfirmado: (json['saldoConfirmado'] as num).toDouble(),
-        vetorConfirmado: (json['vetorConfirmado'] as List)
-            .map((e) => (e as num).toInt())
-            .toList(),
-        lidoEm: DateTime.parse(json['lidoEm'] as String),
-      );
+    usuario: json['usuario'] as String,
+    agencia: json['agencia'] as int,
+    contaId: json['contaId'] as int,
+    nome: json['nome'] as String? ?? '',
+    saldoConfirmado: (json['saldoConfirmado'] as num).toDouble(),
+    vetorConfirmado: (json['vetorConfirmado'] as List)
+        .map((e) => (e as num).toInt())
+        .toList(),
+    lidoEm: DateTime.parse(json['lidoEm'] as String),
+  );
 }
 
 class Pendencia {
@@ -60,6 +54,7 @@ class Pendencia {
     required this.criadaEm,
     required this.estado,
     this.mensagemErro,
+    this.tentada = false,
   });
 
   final String id;
@@ -72,34 +67,40 @@ class Pendencia {
   final DateTime criadaEm;
   EstadoPendencia estado;
   String? mensagemErro;
+  // Depois do primeiro envio, não descartar nem trocar a versão por timeout.
+  bool tentada;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'usuario': usuario,
-        'agencia': agencia,
-        'contaId': contaId,
-        'tipo': tipo,
-        'valor': valor,
-        'vetorBase': vetorBase,
-        'criadaEm': criadaEm.toIso8601String(),
-        'estado': estado.name,
-        'mensagemErro': mensagemErro,
-      };
+    'id': id,
+    'usuario': usuario,
+    'agencia': agencia,
+    'contaId': contaId,
+    'tipo': tipo,
+    'valor': valor,
+    'vetorBase': vetorBase,
+    'criadaEm': criadaEm.toIso8601String(),
+    'estado': estado.name,
+    'mensagemErro': mensagemErro,
+    'tentada': tentada,
+  };
 
   factory Pendencia.fromJson(Map<String, dynamic> json) => Pendencia(
-        id: json['id'] as String,
-        usuario: json['usuario'] as String,
-        agencia: json['agencia'] as int,
-        contaId: json['contaId'] as int,
-        tipo: json['tipo'] as String,
-        valor: (json['valor'] as num).toDouble(),
-        vetorBase:
-            (json['vetorBase'] as List).map((e) => (e as num).toInt()).toList(),
-        criadaEm: DateTime.parse(json['criadaEm'] as String),
-        estado: EstadoPendencia.values.firstWhere(
-          (e) => e.name == json['estado'],
-          orElse: () => EstadoPendencia.pendente,
-        ),
-        mensagemErro: json['mensagemErro'] as String?,
-      );
+    id: json['id'] as String,
+    usuario: json['usuario'] as String,
+    agencia: json['agencia'] as int,
+    contaId: json['contaId'] as int,
+    tipo: json['tipo'] as String,
+    valor: (json['valor'] as num).toDouble(),
+    vetorBase: (json['vetorBase'] as List)
+        .map((e) => (e as num).toInt())
+        .toList(),
+    criadaEm: DateTime.parse(json['criadaEm'] as String),
+    estado: EstadoPendencia.values.firstWhere(
+      (e) => e.name == json['estado'],
+      orElse: () => EstadoPendencia.pendente,
+    ),
+    mensagemErro: json['mensagemErro'] as String?,
+    // Filas antigas podem conter envios com resultado incerto.
+    tentada: json['tentada'] as bool? ?? true,
+  );
 }

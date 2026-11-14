@@ -143,60 +143,92 @@ Escolhi isso porque reaproveita o endpoint que ja existia e ajuda na demonstraca
 
 ---
 
-## Sprint 3 - Parte A (Bully)
+## Sprint 3 - Parte A (5.5 - Bully)
 
-1) Subindo as tres agencias, as tres passaram a reportar liderAtual = 2. Faz sentido no Bully: o maior ID vivo vira coordenador e anuncia.
+1) **Por que vence o maior ID? A regra poderia ser invertida?**
 
-2) As rotas `/bully/*` ficaram sem JWT de proposito no lab. Contas e transferencias continuam protegidas. Quem coordena sao os processos das agencias, nao o usuario do app. O risco e alguem na rede chamar `/bully/coordenador` e mentir o lider; no laboratorio isso e aceito e documentado.
+Cada agência consulta somente IDs maiores e desiste de se eleger quando algum responde. A maior agência ativa não encontra candidato superior e anuncia a coordenação. A regra poderia privilegiar o menor ID, desde que TODOS os participantes invertessem as comparações e a direção das mensagens. O importante é uma prioridade única, determinística e compartilhada.
 
-3) Quando so 0 e 1 estavam no ar, o lider ficou 1. Quando a 2 voltou, ela retomou a lideranca.
+2) **Mais de uma declaração de liderança na subida é um bug?**
 
----
+Pode ser transitório: uma agência começa sozinha, assume, e depois outra de maior ID entra. A captura `historico-lideranca.png` registra 0 → 1 → 2 em uma rodada de subida. Isso demonstra mudanças durante a inicialização, mas não prova que os três processos tenham começado simultaneamente. Depois da comunicação estabilizar, todos devem reconhecer o maior ID ativo. Divergência persistente exige investigação. A correção rejeita anúncios inferiores ao próprio ID e repete a eleição se um candidato maior respondeu sem anunciar.
 
-## Sprint 3 - Parte B (heartbeat / failover)
+3) **Qual é o risco das rotas sem autenticação?**
 
-1) Derrubei a agencia 2. Em alguns segundos (heartbeat de 3s + timeout de 1s) as agencias 0 e 1 marcaram LIDER_NAO_RESPONDEU e elegeram 1. Nao prometi tempo exato de 3 segundos - medi olhando o painel/app.
-
-2) Bully nao garante nada contra particao de rede neste exercicio. Lider eleita tambem nao replica saldo: a conta continua so na agencia do id % 3.
-
-3) Consulta bem-sucedida de `/bully/lider` no heartbeat nao incrementa o relogio vetorial. So eventos de eleicao (iniciar, receber, tornar lider, anunciar, lider nao respondeu) usam o relogio.
+É um risco real: um processo com acesso às portas pode disparar eleições ou enviar anúncios falsos, afetando disponibilidade e liderança. No laboratório as rotas Bully ficam públicas para o exercício; isso não seria adequado em produção. Seriam necessárias autenticação entre serviços e restrições de rede. JWT do usuário continua obrigatório nas operações bancárias.
 
 ---
 
-## Sprint 3 - Parte C (historico de liderancas)
+## Sprint 3 - Parte B (6.4 - heartbeat e failover)
 
-1) O `HistoricoLideranca` ordena por hora de parede. Serve pra apresentar a sequencia, mas nao prova ordem causal total entre maquinas.
+1) **Intervalo de 100 ms ou 60 segundos?**
 
-2) No teste, o resumo mostrou TORNOU_LIDER da 2 e depois da 1 depois do failover. Os LIDER_ANUNCIADO da fase inicial podem ser temporarios; os periodos mais estaveis ficam entre TORNOU_LIDER consecutivos.
+100 ms detecta problemas mais cedo, mas aumenta tráfego, CPU e eleições desnecessárias diante de oscilações. 60 segundos reduz as consultas, mas demora para perceber uma queda. O código usa intervalo de 3 segundos e timeout HTTP de 1 segundo. A latência real de recuperação inclui espera até o próximo heartbeat, timeouts, eleição e anúncio; não é exatamente 3 segundos.
 
----
+2) **É desejável a agência que retorna tomar a liderança?**
 
-## Sprint 3 - Parte D (sincronizacao / conflito)
+No Bully isso mantém a prioridade determinística, mas causa outra troca mesmo quando a líder atual funciona. Em um sistema no qual a líder coordena operações, a troca pode interromper trabalho em andamento ou exigir recuperação de transações. Nesta sprint a liderança é apenas informativa; não há coordenação bancária nem replicação de contas.
 
-1) POST `/contas/{id}/sincronizar` so aplica se `vetorConhecido` for igual ao vetor atual. Se for antigo, volta 409 com vetorAtual e contaAtual, sem mudar saldo. Vi isso no print conflito-sincronizacao (409 e depois sync com vetor novo).
+3) **O que ocorre se a rede demorar mais que o timeout?**
 
-2) Comparar vetor e aplicar saldo fica na mesma regiao critica (`estadoLock`) junto com deposito/saque/transferencia/credito Rabbit. Sem isso duas escritas concorrentes podiam sobrescrever.
-
-3) `operacaoId` evita aplicar a mesma pendencia duas vezes enquanto o processo estiver vivo. Depois de reiniciar a agencia a deduplicacao some da memoria.
+Uma agência viva pode ser suspeita de falha. Podem ocorrer eleições extras e divergência temporária. Receber OK de uma agência maior e não receber seu anúncio em 5 segundos agora deixa a liderança desconhecida; o heartbeat dispara nova eleição. Isso evita assumir a liderança apenas pelo anúncio ausente, mas não resolve partições de rede.
 
 ---
 
-## Sprint 3 - Parte E (app online / lideranca)
+## Sprint 3 - Parte C (7.3 - histórico de lideranças)
 
-1) No Flutter o painel consulta lider a cada 3s. Se a agencia preferida falha, tenta as outras so pra observar o lider - nao manda operacao da conta pra outra agencia (nao tem replica).
+1) **Quantas trocas ocorreram durante a subida e qual o custo?**
 
-2) Transferencia remota no app mostra "enviada para processamento". Nao afirma que o credito ja caiu, porque o credito e assincrono no RabbitMQ.
-
-3) Polling pausa quando o app fica em segundo plano e volta no resume.
+Na primeira sequência da captura existente `historico-lideranca.png`, a ordem é 0 → 1 → 2: duas trocas depois da primeira eleição. A imagem contém também outra rodada de subida e a passagem posterior de 2 para 1; não se deve contar tudo como uma única inicialização. As trocas geram chamadas de eleição/anúncio, gravações de logs e tempo até estabilizar. O histórico ordena por hora de parede para apresentação, sem provar ordem causal total entre máquinas. A captura é anterior às correções e deve ser renovada na validação integrada.
 
 ---
 
-## Sprint 3 - Parte F (offline-first)
+## Sprint 3 - Parte D (8.3 - app Flutter e liderança)
 
-1) Deposito/saque offline entram na fila local (SharedPreferences/JSON, pra funcionar no Chrome do lab). Transferencia ficou so online.
+1) **Frequência de consulta e trade-off?**
 
-2) Mostra saldo confirmado e provisorio separados. A pendencia e gravada antes de mostrar sucesso local.
+O painel consulta a liderança a cada 3 segundos. É um compromisso entre atualização rápida e consumo de rede/bateria. Evita chamadas sobrepostas, pausa ao sair do primeiro plano e retoma ao retornar. A sincronização da fila é independente: tenta a cada 5 segundos enquanto a tela está ativa, além da abertura, retorno ao app e registro de uma operação.
 
-3) Em 409 o app pausa a sequencia, atualiza o cache com contaAtual e oferece Descartar ou Nova tentativa. Nao troca o vetor e reaplica em silencio. Em 401 pede login de novo e nao apaga a fila (vi a mensagem de sessao expirada com pendencia preservada).
+2) **E se duas agências reportarem líderes diferentes?**
 
-4) Derrubar a agencia pra testar offline apaga as contas da memoria. O teste limpo de fila/sync foi com Offline do Chrome e as agencias ainda no ar.
+O painel tenta a agência preferida e usa outra se houver falha. Exibe a observação recebida, sua origem e horário, sem inventar uma votação no cliente. Durante uma transição pode apresentar um estado temporário; o próximo polling reflete uma observação mais recente. Se a divergência persistir, a próxima consulta não garante resolução: é preciso verificar eleição e conectividade.
+
+3) **O que foi reaproveitado do frontend web?**
+
+API REST, JWT, particionamento por `id % 3`, operações e interpretação dos erros. No Flutter foram separados cliente HTTP, repositórios, sessão e widgets. Foi necessário tratar ciclo de vida do app, endereço do host no emulador, cache persistente, fila, saldo provisório e reconciliação após falhas de rede. Transferências continuam online; uma resposta de transferência remota indica publicação para processamento, não confirmação de crédito.
+
+---
+
+## Sprint 3 - Parte E (9.6 - sincronização no backend)
+
+1) **Por que comparar o vetor inteiro em vez do saldo?**
+
+O saldo pode voltar ao valor anterior após depósito e saque, apesar de terem ocorrido eventos. O vetor registra avanço do estado observado por cada agência e permite detectar essa mudança. Vetores diferentes resultam em HTTP 409, mesmo se os saldos coincidirem.
+
+2) **Por que outra conta também pode causar conflito?**
+
+O vetor é compartilhado pela agência, incluindo eventos bancários e de eleição. É uma simplificação conservadora: qualquer avanço pode invalidar a versão conhecida. Para detectar mudanças por conta seriam necessárias versões associadas a cada conta e regras para propagá-las nas operações, inclusive transferências entre contas/agências.
+
+3) **O que fazer com o estado devolvido no 409?**
+
+Mostrar o conflito e o saldo atual, preservar a operação e bloquear as seguintes daquela agência até a decisão da pessoa. Descartar é explícito; Nova tentativa obtém o estado atual e mantém a posição da operação na fila. Uma simples consulta de saldo não troca seu vetor-base. O avanço automático é permitido apenas após um recibo de sucesso, para operações seguintes ainda não enviadas com a mesma base. Uma alteração externa entre os envios ainda deve causar 409.
+
+Detalhes da implementação: comparação, saldo e incremento usam o monitor do próprio relógio, compartilhado com eventos Bully. Nenhuma chamada de rede é feita dentro desse monitor. O recibo de `operacaoId` é guardado antes de escrever o log, para permitir reconciliação mesmo se o log falhar depois da alteração de saldo. A deduplicação continua em memória e não sobrevive ao reinício do backend.
+
+---
+
+## Sprint 3 - Parte F (10.3 - offline-first)
+
+1) **Armazenamento escolhido e alternativas?**
+
+SharedPreferences com JSON por usuário, para manter compatibilidade com Chrome e Android no exercício. Sqflite, Hive e Drift são alternativas; SQLite/Drift permitem modelagem e transações mais adequadas para uma fila maior, e exigem considerar o suporte web. O armazenamento atual serializa alterações dentro do mesmo isolate e verifica o retorno das gravações, mas não oferece transação entre múltiplas abas/processos nem as garantias de um banco transacional. O uso de uma única instância do app é a configuração de demonstração.
+
+2) **Comportamento da tela no conflito e justificativa?**
+
+A captura existente `app-conflito.png` mostra a pendência em conflito, saldo confirmado/provisório e as ações Descartar/Nova tentativa. Na versão corrigida o bloqueio da agência permanece também na próxima tentativa automática e após reabrir o app. Outras agências podem sincronizar. Isso preserva a decisão da pessoa em vez de reaplicar silenciosamente contra uma versão diferente. A nova versão precisa de evidência integrada atualizada.
+
+3) **Qual o risco da UI otimista e como reduzi-lo?**
+
+A pessoa pode confundir uma estimativa local com dinheiro efetivamente disponível. Por isso a tela separa saldo confirmado e provisório e identifica pendências/conflitos. Depósitos e saques são persistidos com ID e vetor antes do primeiro envio, mesmo online; timeout conserva o mesmo ID para reconciliação. Uma operação já enviada com resultado incerto não pode ser descartada até confirmar seu resultado. O saldo provisório é uma estimativa, especialmente durante respostas perdidas; não garante saldo disponível no servidor. Transferências offline não foram implementadas.
+
+**Validação e evidências:** as imagens existentes são anteriores às correções. Reproduzir reconexão com a tela aberta (sem apertar Sincronizar), conflito com duas pendências, expiração do JWT e reinício do app. Capturar `Get-Date` junto das evidências. Desconectar o cliente sem derrubar a agência, pois reiniciar o backend apaga contas e recibos.

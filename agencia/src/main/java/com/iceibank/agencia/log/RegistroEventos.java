@@ -21,8 +21,11 @@ public class RegistroEventos {
     private final ObjectMapper mapper = new ObjectMapper();
 
     public RegistroEventos(String nomeAgencia) throws IOException {
+        this(nomeAgencia, Paths.get("data"));
+    }
+
+    public RegistroEventos(String nomeAgencia, Path pastaDados) throws IOException {
         this.nomeAgencia = nomeAgencia;
-        Path pastaDados = Paths.get("data");
         Files.createDirectories(pastaDados);
         this.caminhoArquivo = pastaDados.resolve("eventos-" + nomeAgencia + ".jsonl");
     }
