@@ -140,3 +140,63 @@ Escolhi isso porque reaproveita o endpoint que ja existia e ajuda na demonstraca
 2) Criar uma conta na agencia 0 e criar outra na agencia 1, sem transferencia entre elas, gera dois vetores que o script marca como CONCORRENTES. Faz sentido: um nao causou o outro. Ja o debito da transferencia e o credito remoto nao devem aparecer nessa lista, porque o credito carrega o vetor do envio (aoReceber).
 
 3) Comparar todos os pares e O(n^2). Com milhoes de eventos fica pesado. Daria para guardar so os vetores recentes, comparar por agencia, ou usar uma estrutura que descarte pares que ja se sabe que sao ordenados.
+
+---
+
+## Sprint 3 - Parte A (Bully)
+
+1) Subindo as tres agencias, as tres passaram a reportar liderAtual = 2. Faz sentido no Bully: o maior ID vivo vira coordenador e anuncia.
+
+2) As rotas `/bully/*` ficaram sem JWT de proposito no lab. Contas e transferencias continuam protegidas. Quem coordena sao os processos das agencias, nao o usuario do app. O risco e alguem na rede chamar `/bully/coordenador` e mentir o lider; no laboratorio isso e aceito e documentado.
+
+3) Quando so 0 e 1 estavam no ar, o lider ficou 1. Quando a 2 voltou, ela retomou a lideranca.
+
+---
+
+## Sprint 3 - Parte B (heartbeat / failover)
+
+1) Derrubei a agencia 2. Em alguns segundos (heartbeat de 3s + timeout de 1s) as agencias 0 e 1 marcaram LIDER_NAO_RESPONDEU e elegeram 1. Nao prometi tempo exato de 3 segundos - medi olhando o painel/app.
+
+2) Bully nao garante nada contra particao de rede neste exercicio. Lider eleita tambem nao replica saldo: a conta continua so na agencia do id % 3.
+
+3) Consulta bem-sucedida de `/bully/lider` no heartbeat nao incrementa o relogio vetorial. So eventos de eleicao (iniciar, receber, tornar lider, anunciar, lider nao respondeu) usam o relogio.
+
+---
+
+## Sprint 3 - Parte C (historico de liderancas)
+
+1) O `HistoricoLideranca` ordena por hora de parede. Serve pra apresentar a sequencia, mas nao prova ordem causal total entre maquinas.
+
+2) No teste, o resumo mostrou TORNOU_LIDER da 2 e depois da 1 depois do failover. Os LIDER_ANUNCIADO da fase inicial podem ser temporarios; os periodos mais estaveis ficam entre TORNOU_LIDER consecutivos.
+
+---
+
+## Sprint 3 - Parte D (sincronizacao / conflito)
+
+1) POST `/contas/{id}/sincronizar` so aplica se `vetorConhecido` for igual ao vetor atual. Se for antigo, volta 409 com vetorAtual e contaAtual, sem mudar saldo. Vi isso no print conflito-sincronizacao (409 e depois sync com vetor novo).
+
+2) Comparar vetor e aplicar saldo fica na mesma regiao critica (`estadoLock`) junto com deposito/saque/transferencia/credito Rabbit. Sem isso duas escritas concorrentes podiam sobrescrever.
+
+3) `operacaoId` evita aplicar a mesma pendencia duas vezes enquanto o processo estiver vivo. Depois de reiniciar a agencia a deduplicacao some da memoria.
+
+---
+
+## Sprint 3 - Parte E (app online / lideranca)
+
+1) No Flutter o painel consulta lider a cada 3s. Se a agencia preferida falha, tenta as outras so pra observar o lider - nao manda operacao da conta pra outra agencia (nao tem replica).
+
+2) Transferencia remota no app mostra "enviada para processamento". Nao afirma que o credito ja caiu, porque o credito e assincrono no RabbitMQ.
+
+3) Polling pausa quando o app fica em segundo plano e volta no resume.
+
+---
+
+## Sprint 3 - Parte F (offline-first)
+
+1) Deposito/saque offline entram na fila local (SharedPreferences/JSON, pra funcionar no Chrome do lab). Transferencia ficou so online.
+
+2) Mostra saldo confirmado e provisorio separados. A pendencia e gravada antes de mostrar sucesso local.
+
+3) Em 409 o app pausa a sequencia, atualiza o cache com contaAtual e oferece Descartar ou Nova tentativa. Nao troca o vetor e reaplica em silencio. Em 401 pede login de novo e nao apaga a fila (vi a mensagem de sessao expirada com pendencia preservada).
+
+4) Derrubar a agencia pra testar offline apaga as contas da memoria. O teste limpo de fila/sync foi com Offline do Chrome e as agencias ainda no ar.
