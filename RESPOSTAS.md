@@ -105,6 +105,14 @@ Escolhi isso porque o teste de resiliencia do sprint mostra exatamente esse caso
 
 ---
 
+## Sprint 3 - funcionalidade adicional
+
+Indicador de agencias ativas no app Flutter. A cada 3 segundos o app consulta `/health` das tres agencias e mostra se responde ou nao, o horario da ultima consulta e marca a lider (vindo do painel Bully).
+
+Escolhi isso porque reaproveita o endpoint que ja existia e ajuda na demonstracao do failover: derruba a agencia 2 e o indicador muda sozinho. "Nao responde" e so a observacao do cliente - nao prova sozinho que o processo morreu.
+
+---
+
 ## Parte B (6.4) - relogio vetorial
 
 1) Se forem 10 agencias, cada mensagem carrega um vetor de 10 numeros. O tamanho cresce com o numero de processos. Para 3 ou 10 agencias isso e barato. Em um sistema enorme (milhares de processos) o vetor fica grande e custa mais para enviar e comparar. Por isso existe o relogio vetorial com versoes mais compactas, mas aqui nao e problema.

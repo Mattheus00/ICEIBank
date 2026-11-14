@@ -3,11 +3,13 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/api_client.dart';
 import '../../core/config.dart';
 import '../../core/session.dart';
+import '../../data/agencies_status_repository.dart';
 import '../../data/bank_repository.dart';
 import '../../data/leadership_repository.dart';
 import '../../data/offline_models.dart';
 import '../../data/offline_store.dart';
 import '../../data/sync_service.dart';
+import '../agencies/agencies_status_panel.dart';
 import '../leadership/leadership_panel.dart';
 import '../login/login_page.dart';
 
@@ -44,6 +46,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   late final LeadershipRepository _leadership =
       LeadershipRepository(widget.api);
+  late final AgenciesStatusRepository _agenciesStatus =
+      AgenciesStatusRepository(widget.api);
   late final SyncService _sync = SyncService(
     session: widget.session,
     api: widget.api,
@@ -225,6 +229,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           LeadershipPanel(
             repository: _leadership,
             agenciaPreferida: widget.agenciaPreferida,
+          ),
+          const SizedBox(height: 12),
+          AgenciesStatusPanel(
+            statusRepository: _agenciesStatus,
+            leadershipRepository: _leadership,
           ),
           const SizedBox(height: 12),
           Card(
